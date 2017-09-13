@@ -1,10 +1,45 @@
 #!/usr/bin/env python
 
 from atexit import register
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_file
+from io import BytesIO
+from os import remove
+from os.path import basename
+from tinydb import Query, TinyDB
+from uuid import uuid4 as random_uuid
+
 from camera import Camera
 
 app = Flask(__name__.split('.')[0])
+
+
+class ImageRepository(object):
+	def __init__(self, filepath='db.json'):
+		super(ImageRepository, self).__init__()
+		self._db = TinyDB(filepath)
+		self._table = self._db.table('snapshot', cache_size=32)
+	
+	def persist(self, filepaths):
+		for filepath in filepaths:
+			sid = str(random_uuid())
+			self._table.insert({'id': sid, 'filepath': filepath})
+			yield sid
+	
+	def retrieve(self, cid, sid):
+		filepath = self._table.get(Query().id == str(sid)).get('filepath')
+		print filepath
+		data = None
+		with open(filepath, 'rb') as fp:
+			data = BytesIO(fp.read())
+		return basename(filepath), data
+	
+	def delete(self, cid, sid):
+		record = self._table.get(Query().id == str(sid))
+		self._table.remove(eid=record.eid)
+		remove(record.get('filepath'))
+	
+	def get_all_ids(self):
+		return [record.get('id') for record in self._table.all()]
 
 
 class Resources(object):
@@ -23,8 +58,8 @@ class Resources(object):
 		for camera in self._cameras.values():
 			camera.close()
 
-
 resources = Resources()
+img_repo = ImageRepository()
 
 @app.route('/camera')
 def camera_list():
@@ -34,23 +69,31 @@ def camera_list():
 def camera_info(cid):
 	return jsonify(resources.cameras.get(cid).info())
 
-@app.route('/camera/<int:cid>/snapshot', methods=['POST'])
+@app.route('/camera/<int:cid>/snapshot', methods=['GET', 'POST'])
 def camera_capture(cid, count=1):
-	req = request.get_json()
-	#TODO: return snapshot-id (sid)
-	return jsonify(resources.cameras.get(cid).capture(req.get('count', 1)))
+	if request.method == 'POST':
+		req = request.get_json()
+		paths = resources.cameras.get(cid).capture(req.get('count', 1))
+		return jsonify(list(img_repo.persist(paths)))
+	else:
+		results = img_repo.get_all_ids()
+		print results
+		return jsonify(results)
 
-@app.route('/camera/<int:cid>/snapshot/<int:sid>')
+@app.route('/camera/<int:cid>/snapshot/<uuid:sid>')
 def camera_get_snapshot(cid, sid):
-	pass #return image binary
+	filename, data = img_repo.retrieve(cid, sid)
+	return send_file(data, attachment_filename=filename, mimetype='image/jpeg', as_attachment=True)
 
-@app.route('/camera/<int:cid>/snapshot/<int:sid>', methods=['DELETE'])
+@app.route('/camera/<int:cid>/snapshot/<uuid:sid>', methods=['DELETE'])
 def camera_rm_snapshot(cid, sid):
-	pass
+	img_repo.delete(cid, sid)
+	return jsonify({'success': True})
 
-@app.route('/camera/<int:cid>/snapshot/<int:sid>/info')
+@app.route('/camera/<int:cid>/snapshot/<uuid:sid>/info')
 def camera_snapshot_info(cid, sid):
-	pass #return snapshot resolution, encoding (dict)
+	#TODO: EXIF
+	return jsonify({'this route not yet implemented': 'sorry for the inconvenience'}), 501
 
 @app.route('/camera/<int:cid>/stream')
 def camera_stream(cid):
