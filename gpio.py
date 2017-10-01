@@ -3,6 +3,7 @@
 import RPi.GPIO as gpio
 from collections import deque
 from datetime import datetime
+from logging import getLogger
 from threading import Timer
 from time import sleep
 
@@ -24,7 +25,7 @@ class GpioOutput(object):
 		self._device_type = device_type
 		gpio.setup(channel, gpio.OUT)
 		gpio.output(channel, False)
-		print 'channel {} is {}'.format(channel, device_type)
+		getLogger(__name__).info('channel %2d is %s', channel, device_type)
 
 
 class Logger(Output):
@@ -72,13 +73,14 @@ class LED(GpioOutput):
 class MotionDetector(object):
 	def __init__(self, channel):
 		super(MotionDetector, self).__init__()
+		self._logger = getLogger(__name__)
 		self._channel = channel
 		self.configure(self._channel)
 		self._output = []
 	
 	def configure(self, channel):
 		gpio.setup(channel, gpio.IN, pull_up_down = gpio.PUD_UP)
-		print 'channel {} is motion sensor (pull up, attach to ground to trigger)'.format(channel)
+		self._logger.info('channel %d is motion sensor (pull up, attach to ground to trigger)', channel)
 		gpio.add_event_detect(channel, gpio.RISING, callback=self.rising, bouncetime=500)
 		#gpio.add_event_detect(channel, gpio.BOTH, callback=self.both, bouncetime=100)
 	
@@ -87,7 +89,7 @@ class MotionDetector(object):
 	
 	def both(self, channel):
 		if channel is not self._channel:
-			print 'WARNING: triggered on unexpected channel'
+			self._logger.warning('triggered on unexpected channel')
 		if gpio.input(channel):
 			self.rising(channel)
 		else:

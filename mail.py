@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-import json
 from smtplib import SMTP_SSL, SMTPServerDisconnected
 
 from argparse import ArgumentParser
@@ -10,6 +9,7 @@ from os.path import basename
 from platform import node
 from threading import Lock
 from traceback import print_exc
+from yaml import safe_load
 
 from email.mime.image import MIMEImage
 from email.mime.text import MIMEText
@@ -18,7 +18,7 @@ from email.mime.multipart import MIMEMultipart
 class MailConfiguration(object):
 	def __init__(self, filepath, name):
 		with open(filepath) as fp:
-			config = json.load(fp)[name]
+			config = safe_load(fp)[name]
 			self._username = config['username']
 			self._password = config['password'].decode(config['password.encoding'])
 			self._address = config['address']
@@ -96,7 +96,7 @@ class Mailer(object):
 
 if __name__ == '__main__':
 	parser = ArgumentParser()
-	parser.add_argument('configpath', nargs='?', default='mail.json', help='mail configuration')
+	parser.add_argument('configpath', nargs='?', default='config/mail.yaml', help='mail configuration')
 	parser.add_argument('imagepath', nargs='?', default='sample.png', help='PNG image to attach')
 	args = parser.parse_args()
 	cfg = MailConfiguration(args.configpath, 'gmail')

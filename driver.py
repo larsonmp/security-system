@@ -3,12 +3,14 @@
 from argparse import ArgumentParser
 from datetime import datetime
 from logging import DEBUG, INFO, WARNING, basicConfig, getLogger
+from logging.config import dictConfig
 from mail import MailConfiguration, Mailer
 from multiprocessing import Process, Queue
 from requests import post
 from threading import Lock, Thread, Timer
 from time import sleep
 from traceback import print_exc
+from yaml import safe_load
 
 import gpio
 from rest import Client
@@ -19,7 +21,7 @@ class Controller(object):
 	def __init__(self):
 		super(Controller, self).__init__()
 		self._client = Client()
-		cfg = MailConfiguration('mail.json', 'gmail')
+		cfg = MailConfiguration('config/mail.yaml', 'gmail')
 		self._mailer = Mailer(cfg.address, cfg.username, cfg.password, cfg.host, cfg.port)
 		self._recipients = [cfg.address]
 		self._threads = []
@@ -42,6 +44,7 @@ class CameraAdapter(gpio.Output):
 		self._controller = controller
 		self._timer = None
 		self._lock = Lock()
+		self._logger = getLogger('camera')
 	
 	def start(self):
 		if self.lock():
@@ -49,7 +52,7 @@ class CameraAdapter(gpio.Output):
 			self._timer.start()
 			self._controller.capture()
 		else:
-			print 'couldn\'t acquire lock, skipping photo'
+			self._logger.warning('couldn\'t acquire lock, skipping photo')
 	
 	def lock(self):
 		return self._lock.acquire(False)
@@ -61,10 +64,18 @@ class CameraAdapter(gpio.Output):
 if __name__=='__main__':
 	parser = ArgumentParser(description='detect motion, capture image, transmit image')
 	parser.add_argument('-i', '--interactive', action='store_true', help='control sentry interactively')
+	parser.add_argument('-l', '--logging-config', metavar="PATH", default='config/logging.yaml', help='path to logging configuration file')
 	args = parser.parse_args()
 	
-	basicConfig(filename=datetime.now().strftime('driver_%Y-%m-%dT%H.%M.%S%z.log'), level=DEBUG, format='%(asctime)-15s %(message)s')
+	try:
+		with open(args.logging_config) as fp:
+			config = safe_load(fp.read())
+			dictConfig(config)
+	except RuntimeError as e:
+		print_exc()
+		basicConfig(filename=datetime.now().strftime('driver_%Y-%m-%dT%H.%M.%S%z.log'), level=DEBUG, format='%(asctime)-15s %(message)s')
 	logger = getLogger('driver')
+	
 	controller = Controller()
 	
 	if args.interactive:

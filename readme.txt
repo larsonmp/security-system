@@ -1,10 +1,8 @@
 TODO
 --------------------------------------------------------------------------------
-1. daemon
-2. SSL
-3. AuthN
-4. AuthZ
-
+1. SSL
+2. AuthN
+3. AuthZ
 
 ReST API
 --------------------------------------------------------------------------------
@@ -36,4 +34,15 @@ GET    /led/id         :status
 POST   /led/id(status)
 
 GET    /status         ?
+
+--------------------------------------------------------------------------------
+/etc/supervisor/supervisord.conf
+--------------------------------------------------------------------------------
+[program:security_camera]
+command=zsh /path/to/security-system/bootstrap.zsh
+directory=/path/to/security-system
+autostart=true
+autorestart=unexpected
+stdout_logfile=/var/log/security-system.stdout
+stderr_logfile=/var/log/security-system.stderr
 

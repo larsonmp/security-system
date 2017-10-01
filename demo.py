@@ -17,10 +17,11 @@ if __name__=='__main__':
 	basicConfig(filename=datetime.now().strftime('demo_%Y-%m-%dT%H.%M.%S%z.log'), level=DEBUG, format='%(asctime)-15s %(message)s')
 	logger = getLogger('demo')
 	
-	client = Client()
-	cfg = MailConfiguration('mail.json', 'gmail')
+	client = Client(port=10082)
+	cfg = MailConfiguration('config/mail.yaml', 'gmail')
 	mailer = Mailer(cfg.address, cfg.username, cfg.password, cfg.host, cfg.port)
 
-	filepaths = client.capture()
-	mailer.send([cfg.address], 'camera activity', datetime.now().strftime('date: %FT%T'), filepaths)
+	sid = client.capture_snapshot(count=1)[0]
+	filepath = client.get_snapshot(sid)
+	mailer.send([cfg.address], 'camera activity', datetime.now().strftime('date: %FT%T'), [filepath])
 	mailer.close()

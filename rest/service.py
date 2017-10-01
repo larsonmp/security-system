@@ -27,7 +27,6 @@ class ImageRepository(object):
 	
 	def retrieve(self, cid, sid):
 		filepath = self._table.get(Query().id == str(sid)).get('filepath')
-		print filepath
 		data = None
 		with open(filepath, 'rb') as fp:
 			data = BytesIO(fp.read())
@@ -77,7 +76,6 @@ def camera_capture(cid, count=1):
 		return jsonify(list(img_repo.persist(paths)))
 	else:
 		results = img_repo.get_all_ids()
-		print results
 		return jsonify(results)
 
 @app.route('/camera/<int:cid>/snapshot/<uuid:sid>')
@@ -140,5 +138,3 @@ def led_status(id):
 def status():
 	return 'status: up'
 
-#if __name__ == '__main__':
-#    app.run(host='0.0.0.0', port='10082', threaded=True)
