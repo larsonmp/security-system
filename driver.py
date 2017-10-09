@@ -5,8 +5,6 @@ from datetime import datetime
 from logging import DEBUG, INFO, WARNING, basicConfig, getLogger
 from logging.config import dictConfig
 from mail import MailConfiguration, Mailer
-from multiprocessing import Process, Queue
-from requests import post
 from threading import Lock, Thread, Timer
 from time import sleep
 from traceback import print_exc
@@ -14,23 +12,26 @@ from yaml import safe_load
 
 import gpio
 from rest import Client
-from ux import TerminalInterface
 
 
 class Controller(object):
 	def __init__(self):
 		super(Controller, self).__init__()
-		self._client = Client()
+		self._client = Client(port=10082)
 		cfg = MailConfiguration('config/mail.yaml', 'gmail')
 		self._mailer = Mailer(cfg.address, cfg.username, cfg.password, cfg.host, cfg.port)
 		self._recipients = [cfg.address]
 		self._threads = []
 	
-	def capture(self):
-		filepaths = self._client.capture(count=2)
+	def capture_image(self):
+		sids = self._client.capture_snapshot(count=2)
+		filepaths = [self._client.get_snapshot(sid) for sid in sids]
 		thread = Thread(target=self._mailer.send, args=(self._recipients, 'camera activity', datetime.now().strftime('date: %FT%T'), filepaths))
 		thread.start()
 		self._threads.append(thread)
+	
+	def get_image_ids(self):
+		return self._client.get_all_snapshot_ids()
 	
 	def close(self):
 		for thread in self._threads:
@@ -50,7 +51,7 @@ class CameraAdapter(gpio.Output):
 		if self.lock():
 			self._timer = Timer(0.5, self.unlock)
 			self._timer.start()
-			self._controller.capture()
+			self._controller.capture_image()
 		else:
 			self._logger.warning('couldn\'t acquire lock, skipping photo')
 	
@@ -63,7 +64,6 @@ class CameraAdapter(gpio.Output):
 
 if __name__=='__main__':
 	parser = ArgumentParser(description='detect motion, capture image, transmit image')
-	parser.add_argument('-i', '--interactive', action='store_true', help='control sentry interactively')
 	parser.add_argument('-l', '--logging-config', metavar="PATH", default='config/logging.yaml', help='path to logging configuration file')
 	args = parser.parse_args()
 	
@@ -78,43 +78,19 @@ if __name__=='__main__':
 	
 	controller = Controller()
 	
-	if args.interactive:
-		queue = Queue()
-		ui = TerminalInterface()
-		process = Process(target=ui.display, args=(queue,))
-		try:
-			process.start()
-			while True:
-				command = queue.get()
-				if 'capture' == command:
-					logger.debug('capture')
-					controller.capture()
-				elif 'quit' == command:
-					break
-			logger.debug('closing queue...')
-			queue.close()
-			logger.debug('joining queue...')
-			queue.join_thread()
-			logger.debug('joining process...')
-			process.join()
-		except Exception:
-			logger.exception('whoops')
-		finally:
-			ui.close()
-	else:
-		try:
-			gpio.initialize()
-			detector = gpio.MotionDetector(37)
-			detector.add_output(gpio.Buzzer(7))
-			detector.add_output(gpio.LED(35))
-			detector.add_output(gpio.Logger())
-			detector.add_output(CameraAdapter(controller))
-			while True:
-				sleep(5)
-		except KeyboardInterrupt:
-			pass
-		finally:
-			gpio.cleanup()
+	try:
+		gpio.initialize()
+		detector = gpio.MotionDetector(37)
+		detector.add_output(gpio.Buzzer(7))
+		detector.add_output(gpio.LED(35))
+		detector.add_output(gpio.Logger())
+		detector.add_output(CameraAdapter(controller))
+		while True:
+			sleep(5)
+	except KeyboardInterrupt:
+		pass
+	finally:
+		gpio.cleanup()
 	
 	controller.close()
 
