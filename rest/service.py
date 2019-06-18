@@ -5,6 +5,7 @@ from flask import Flask, jsonify, request, send_file
 from io import BytesIO
 from os import remove
 from os.path import basename
+from sys import stdout, stderr
 from tinydb import Query, TinyDB
 from uuid import uuid4 as random_uuid
 
@@ -60,18 +61,23 @@ class Resources(object):
 resources = Resources()
 img_repo = ImageRepository()
 
+stderr.write('resources.cameras: {}\n'.format(resources.cameras))
+
 @app.route('/camera')
 def camera_list():
 	return jsonify(resources.cameras.keys())
 
 @app.route('/camera/<int:cid>/info')
 def camera_info(cid):
-	return jsonify(resources.cameras.get(cid).info())
+	return jsonify(resources.cameras.get(cid).info)
 
 @app.route('/camera/<int:cid>/snapshot', methods=['GET', 'POST'])
 def camera_capture(cid, count=1):
+	stderr.write('request: {}\n'.format(request))
 	if request.method == 'POST':
-		req = request.get_json()
+		req = request.get_json() or {}
+		stderr.write('cam: {}\n'.format(resources.cameras))
+		stderr.write('json: {}\n'.format(req))
 		paths = resources.cameras.get(cid).capture(req.get('count', 1))
 		return jsonify(list(img_repo.persist(paths)))
 	else:

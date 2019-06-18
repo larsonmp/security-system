@@ -9,6 +9,11 @@ class Camera(object):
 		self._id = id
 		self._camera = PiCamera(resolution=(2592, 1944))
 
+	@property
+	def id(self):
+		return self._id
+	
+	@property
 	def info(self):
 		return {
 			'id': self._id,
@@ -28,4 +33,11 @@ class Camera(object):
 	
 	def close(self):
 		self._camera.close()
+	
+	def __str__(self):
+		return str({'id': self.id, 'info': self.info})
+	
+	def __repr__(self):
+		return str({'id': self.id, 'info': self.info})
+
 
