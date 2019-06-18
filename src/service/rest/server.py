@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 from atexit import register
 from flask import Flask, jsonify, request, send_file
 from io import BytesIO
@@ -9,14 +7,15 @@ from sys import stdout, stderr
 from tinydb import Query, TinyDB
 from uuid import uuid4 as random_uuid
 
-from camera import Camera
+from .camera import Camera
+from service.i2c import Thermometer, initialize
 
 app = Flask(__name__.split('.')[0])
-
+initialize()
 
 class ImageRepository(object):
 	def __init__(self, filepath='db.json'):
-		super(ImageRepository, self).__init__()
+		super().__init__()
 		self._db = TinyDB(filepath)
 		self._table = self._db.table('snapshot', cache_size=32)
 	
@@ -44,19 +43,28 @@ class ImageRepository(object):
 
 class Resources(object):
 	def __init__(self):
-		super(Resources, self).__init__()
+		super().__init__()
 		self._cameras = {
 			0: Camera(0)
+		}
+		self._sensors = {
+			0: Thermometer.new()
 		}
 		register(self.close)
 	
 	@property
 	def cameras(self):
 		return self._cameras
+	
+	@property
+	def sensors(self):
+		return self._sensors
 
 	def close(self):
 		for camera in self._cameras.values():
 			camera.close()
+		for sensor in self._sensors.values():
+			sensor.close()
 
 resources = Resources()
 img_repo = ImageRepository()
@@ -65,7 +73,7 @@ stderr.write('resources.cameras: {}\n'.format(resources.cameras))
 
 @app.route('/camera')
 def camera_list():
-	return jsonify(resources.cameras.keys())
+	return jsonify(list(resources.cameras.keys()))
 
 @app.route('/camera/<int:cid>/info')
 def camera_info(cid):
@@ -103,25 +111,39 @@ def camera_snapshot_info(cid, sid):
 def camera_stream(cid):
 	pass #possible?
 
-@app.route('/thermometer')
-def thermometers():
-	pass
+@app.route('/system/python')
+def python():
+	import platform
+	return jsonify({'version': platform.python_version()})
 
-@app.route('/thermometer/<int:id>')
-def thermometer(id):
-	pass #return temperature
+@app.route('/sensor')
+def sensor_list():
+	return jsonify(list(resources.sensors.keys()))
 
-@app.route('/thermometer/<int:id>/info')
-def thermometer_info(id):
-	pass #return units, accuracy? (dict)
+@app.route('/sensor/<int:sid>', methods=['GET'])
+def sensor(sid):
+	unit = request.args.get('unit')
+	sensor = resources.sensors.get(sid)
+	reading = sensor.read(unit)
+	return jsonify({
+		'value': reading.value,
+		'unit': reading.unit
+	})
 
-@app.route('/thermometer/<int:id>/history')
-def thermometer_history(id):
+@app.route('/sensor/<int:sid>/info', methods=['GET'])
+def sensor_info(sid):
+	sensor = resources.sensors.get(sid)
+	return jsonify({
+		'type': sensor.type
+	})
+
+@app.route('/sensor/<int:sid>/history', methods=['GET'])
+def sensor_history(sid):
 	year = request.args.get('year')
 	pass #return list of measurements (weekly averages for year, daily averages for month, hourly readings for day?)
 
-@app.route('/thermometer/<int:id>/history')
-def thermometer_history_rm(id):
+@app.route('/sensor/<int:id>/history', methods=['DELETE'])
+def sensor_history_rm(sid):
 	pass #delete cache
 
 @app.route('/motion/event')

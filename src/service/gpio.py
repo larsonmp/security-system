@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 import RPi.GPIO as gpio
 from collections import deque
 from datetime import datetime
@@ -9,7 +7,7 @@ from time import sleep
 
 class Output(object):
 	def __init__(self):
-		super(Output, self).__init__()
+		super().__init__()
 	
 	def start(self):
 		pass
@@ -20,7 +18,7 @@ class Output(object):
 
 class GpioOutput(object):
 	def __init__(self, channel, device_type):
-		super(GpioOutput, self).__init__()
+		super().__init__()
 		self._channel = channel
 		self._device_type = device_type
 		gpio.setup(channel, gpio.OUT)
@@ -30,17 +28,17 @@ class GpioOutput(object):
 
 class Logger(Output):
 	def __init__(self):
-		super(Logger, self).__init__()
+		super().__init__()
 		self._id = 0
 	
 	def start(self):
-		print '[{}]: event {}: motion detected'.format(datetime.now(), self._id)
+		print('[{}]: event {}: motion detected'.format(datetime.now(), self._id))
 		self._id += 1
 
 
 class Buzzer(GpioOutput):
 	def __init__(self, channel):
-		super(Buzzer, self).__init__(channel, 'buzzer')
+		super().__init__(channel, 'buzzer')
 		self._timer = None
 	
 	def start(self):
@@ -56,7 +54,7 @@ class Buzzer(GpioOutput):
 
 class LED(GpioOutput):
 	def __init__(self, channel):
-		super(LED, self).__init__(channel, 'LED')
+		super().__init__(channel, 'LED')
 		self._timer = None
 	
 	def start(self):
@@ -72,7 +70,7 @@ class LED(GpioOutput):
 
 class MotionDetector(object):
 	def __init__(self, channel):
-		super(MotionDetector, self).__init__()
+		super().__init__()
 		self._logger = getLogger(__name__)
 		self._channel = channel
 		self.configure(self._channel)

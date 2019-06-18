@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 from io import BytesIO
 from json import dumps
 from mimetypes import guess_all_extensions
@@ -13,7 +11,7 @@ def guess_extension(mimetype):
 
 class Client(object):
 	def __init__(self, protocol='http', host='localhost', port=80):
-		super(Client, self).__init__()
+		super().__init__()
 		self._base_url = '{}://{}:{}'.format(protocol, host, port)
 	
 	def capture_snapshot(self, cid=0, count=1):

@@ -3,6 +3,7 @@
 from smtplib import SMTP_SSL, SMTPServerDisconnected
 
 from argparse import ArgumentParser
+from base64 import b64decode as decode
 from datetime import datetime
 from getpass import getpass
 from os.path import basename
@@ -20,7 +21,7 @@ class MailConfiguration(object):
 		with open(filepath) as fp:
 			config = safe_load(fp)[name]
 			self._username = config['username']
-			self._password = config['password'].decode(config['password.encoding'])
+			self._password = decode(config['password']).decode('utf-8')
 			self._address = config['address']
 			self._host = config['outgoing']['host']
 			self._port = config['outgoing']['port']

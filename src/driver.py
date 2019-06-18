@@ -4,19 +4,19 @@ from argparse import ArgumentParser
 from datetime import datetime
 from logging import DEBUG, INFO, WARNING, basicConfig, getLogger
 from logging.config import dictConfig
-from mail import MailConfiguration, Mailer
 from threading import Lock, Thread, Timer
 from time import sleep
 from traceback import print_exc
 from yaml import safe_load
 
-import gpio
-from rest import Client
+import service.gpio as gpio
+from service.mail import MailConfiguration, Mailer
+from service.rest import Client
 
 
 class Controller(object):
 	def __init__(self):
-		super(Controller, self).__init__()
+		super().__init__()
 		self._client = Client(port=10082)
 		cfg = MailConfiguration('config/mail.yaml', 'gmail')
 		self._mailer = Mailer(cfg.address, cfg.username, cfg.password, cfg.host, cfg.port)
@@ -41,7 +41,7 @@ class Controller(object):
 
 class CameraAdapter(gpio.Output):
 	def __init__(self, controller):
-		super(CameraAdapter, self).__init__()
+		super().__init__()
 		self._controller = controller
 		self._timer = None
 		self._lock = Lock()

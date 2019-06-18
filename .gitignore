@@ -1,3 +1,4 @@
 *.pyc
 mail.yaml
 db.json
+__pycache__/
